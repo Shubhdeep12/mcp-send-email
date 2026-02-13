@@ -102,22 +102,51 @@ Environment variables:
 
 ## Local Development
 
-1. Clone this project and build:
+### Build
 
-```
+```bash
 git clone https://github.com/resend/resend-mcp.git
+cd resend-mcp
 pnpm install
 pnpm run build
 ```
 
-2. To use the local build in Cursor or Claude Desktop, replace the `npx` command with the path to your local build:
+Build output is `dist/index.js` (single file from [tsup](https://tsup.xyz/)).
+
+### Run / test the build
+
+**1. Run the built CLI directly (Node):**
+
+```bash
+# From repo root; needs API key
+export RESEND_API_KEY=re_your_key_here
+node dist/index.js
+```
+
+Or with inline key:
+
+```bash
+node dist/index.js --key re_your_key_here
+```
+
+**2. Run via npx (published package):**
+
+```bash
+npx -y resend-mcp
+# or with env
+RESEND_API_KEY=re_xxx npx -y resend-mcp
+```
+
+**3. Use in Cursor or Claude Desktop (local build):**
+
+Point the MCP server at your local build with `node` and the path to `dist/index.js`:
 
 ```json
 {
   "mcpServers": {
     "resend": {
       "command": "node",
-      "args": ["ABSOLUTE_PATH_TO_PROJECT/dist/index.js"],
+      "args": ["/absolute/path/to/resend-mcp/dist/index.js"],
       "env": {
         "RESEND_API_KEY": "re_xxxxxxxxx"
       }
@@ -126,25 +155,17 @@ pnpm run build
 }
 ```
 
-### Testing with MCP Inspector
+**4. Test with MCP Inspector:**
 
-> **Note:** Make sure you've built the project first (see [Setup](#setup) section above).
+```bash
+export RESEND_API_KEY=re_your_key_here
+pnpm inspector
+```
 
-1. **Set your API key** (so the server can talk to Resend):
+In the Inspector UI (browser):
 
-   ```bash
-   export RESEND_API_KEY=re_your_key_here
-   ```
-
-2. **Start the inspector**:
-
-   ```bash
-   pnpm inspector
-   ```
-
-3. **In the Inspector UI** (browser):
-   - Choose **stdio** (launch a process).
-   - **Command:** `node`
-   - **Args:** `dist/index.js` (or the full path to `dist/index.js`)
-   - **Env:** `RESEND_API_KEY=re_your_key_here` (or leave blank if you already exported it in the same terminal).
-   - Click **Connect**, then use "List tools" to verify the server is working.
+- Choose **stdio** (launch a process).
+- **Command:** `node`
+- **Args:** `dist/index.js` (or full path to `dist/index.js`)
+- **Env:** `RESEND_API_KEY=re_your_key_here` (or leave blank if already exported).
+- Click **Connect**, then use "List tools" to verify the server is working.
