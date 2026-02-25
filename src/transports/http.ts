@@ -4,6 +4,15 @@ import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { Resend } from 'resend';
+import {
+  AuthError,
+  type AuthPrincipal,
+  authenticate,
+  BearerTokenExtractor,
+  DEFAULT_HTTP_AUTH_CONFIG,
+  type HttpAuthConfig,
+  ResendApiKeyTokenValidator,
+} from '../core/auth/index.js';
 import { createMcpServer } from '../server.js';
 import type { ServerOptions } from '../types.js';
 
@@ -15,11 +24,12 @@ function sendJsonRpcError(
   code: number,
   message: string,
   type?: string,
+  wwwAuthenticate?: string,
 ): void {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json');
-  if (statusCode === 401) {
-    res.setHeader('WWW-Authenticate', 'Bearer realm="resend-mcp"');
+  if (wwwAuthenticate) {
+    res.setHeader('WWW-Authenticate', wwwAuthenticate);
   }
   res.end(
     JSON.stringify({
@@ -32,20 +42,6 @@ function sendJsonRpcError(
       id: null,
     }),
   );
-}
-
-/**
- * Extract the Resend API key from the Authorization: Bearer header.
- * Returns null if the header is missing or malformed.
- */
-function extractBearerToken(req: IncomingMessage): string | null {
-  const header = req.headers.authorization;
-  if (!header) return null;
-  const [scheme, ...rest] = header.trim().split(/\s+/);
-  if (!scheme || scheme.toLowerCase() !== 'bearer' || rest.length === 0)
-    return null;
-  const token = rest.join(' ').trim();
-  return token || null;
 }
 
 function normalizeOrigin(origin: string): string | null {
@@ -93,8 +89,11 @@ export async function runHttp(
     `http://127.0.0.1:${port}`,
     `http://localhost:${port}`,
   ],
+  authConfig: HttpAuthConfig = DEFAULT_HTTP_AUTH_CONFIG,
 ): Promise<Server> {
   const app = createMcpExpressApp();
+  const tokenExtractor = new BearerTokenExtractor();
+  const tokenValidator = new ResendApiKeyTokenValidator();
   const normalizedAllowedOrigins = new Set(
     allowedOrigins.map(normalizeOrigin).filter((o): o is string => o !== null),
   );
@@ -138,19 +137,28 @@ export async function runHttp(
       ) {
         // New session: require a Bearer token so we can create a per-session
         // Resend client scoped to this user's API key.
-        const apiKey = extractBearerToken(req);
-        if (!apiKey) {
-          sendJsonRpcError(
-            res,
-            401,
-            -32002,
-            'Unauthorized: provide Authorization: Bearer <resend-api-key>',
-            'auth_error',
-          );
-          return;
+        let principal: AuthPrincipal;
+        try {
+          principal = await authenticate(req, tokenExtractor, tokenValidator, {
+            ...DEFAULT_HTTP_AUTH_CONFIG,
+            ...authConfig,
+          });
+        } catch (error) {
+          if (error instanceof AuthError) {
+            sendJsonRpcError(
+              res,
+              error.statusCode,
+              error.jsonRpcCode,
+              error.message,
+              error.type,
+              error.wwwAuthenticate,
+            );
+            return;
+          }
+          throw error;
         }
 
-        const resend = new Resend(apiKey);
+        const resend = new Resend(principal.token);
 
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),

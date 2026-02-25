@@ -1,4 +1,5 @@
 import type { ParsedArgs } from 'minimist';
+import { DEFAULT_HTTP_AUTH_CONFIG } from '../core/auth/config.js';
 import { DEFAULT_HTTP_HOST, DEFAULT_HTTP_PORT } from './constants.js';
 import { parseReplierAddresses } from './parse.js';
 import type { ResolveResult } from './types.js';
@@ -95,6 +96,7 @@ export function resolveConfig(
           apiKey: apiKey?.trim(),
           host,
           allowedOrigins,
+          auth: { ...DEFAULT_HTTP_AUTH_CONFIG },
         }
       : { ...base, transport: 'stdio' as const, apiKey: apiKey!.trim() },
   };

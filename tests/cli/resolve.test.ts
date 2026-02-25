@@ -124,6 +124,10 @@ describe('resolveConfig', () => {
       expect(result.config.transport).toBe('http');
       expect(result.config.port).toBe(3000);
       expect((result.config as HttpConfig).host).toBe('127.0.0.1');
+      expect((result.config as HttpConfig).auth).toEqual({
+        bearerRealm: 'resend-mcp',
+        requiredScopes: [],
+      });
       expect((result.config as HttpConfig).allowedOrigins).toEqual([
         'http://127.0.0.1:3000',
         'http://localhost:3000',

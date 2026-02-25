@@ -1,3 +1,5 @@
+import type { HttpAuthConfig } from '../core/auth/config.js';
+
 export type TransportMode = 'stdio' | 'http';
 
 /**
@@ -23,6 +25,7 @@ export interface HttpConfig {
   port: number;
   host: string;
   allowedOrigins: string[];
+  auth: HttpAuthConfig;
 }
 
 export type CliConfig = StdioConfig | HttpConfig;
